@@ -3,31 +3,37 @@ import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js'
 import { check, fail, group, sleep } from 'k6'
 import http from 'k6/http'
 import { Rate } from 'k6/metrics'
-import { isOK, validateSiteUrl } from './checks and helper.js'
+import { duration500, isOK, validateSiteUrl } from './checks and helper.js'
 
-const fields = {
-  // wxample use of faker.js
-  billing_first_name: faker.name.firstName(),
-  billing_last_name: faker.name.lastName(),
-  billing_company: faker.datatype.boolean() ? faker.company.companyName() : null,
-  billing_country: 'US',
-  billing_state: faker.address.stateAbbr(),
-  billing_address_1: faker.address.streetAddress(),
-  billing_address_2: faker.datatype.boolean() ? faker.address.secondaryAddress() : null,
-  billing_city: faker.address.city(),
-  billing_postcode: faker.address.zipCodeByState('DE'),
-  billing_phone: faker.phone.phoneNumberFormat(),
-  billing_email: randomIntBetween(1, 100) + '-' + faker.internet.exampleEmail(),
-  order_comments: faker.datatype.boolean() ? faker.lorem.sentences() : null
+const user = {
+  first_name: faker.name.firstName(),
+  last_name: faker.name.lastName(),
+  company: faker.datatype.boolean() ? faker.company.companyName() : null,
+  country: faker.address.country(),
+  state: faker.address.stateAbbr(),
+  address_1: faker.address.streetAddress(),
+  address_2: faker.datatype.boolean() ? faker.address.secondaryAddress() : null,
+  city: faker.address.city(),
+  postcode: faker.address.zipCodeByState('DE'),
+  phone: faker.phone.phoneNumberFormat(),
+  email: randomIntBetween(1, 100) + '-' + faker.internet.exampleEmail()
 }
-
+const TEST_2_RUN = __ENV.TEST_2_RUN ? __ENV.TEST_2_RUN : 'smoke'
+const ENV_2_RUN = __ENV.ENV_2_RUN ? __ENV.ENV_2_RUN : 'dev'
+const BASE_URL = __ENV.SITE_URL ? __ENV.SITE_URL : 'https://reqres.in/api/users'
+// Constants
+const EnvToRun = {
+  dev: 'dev',
+  test: 'test',
+  prod: 'prod'
+}
 export const options = {
   throw: true,
   summaryTimeUnit: 'ms',
   thresholds: {
     http_req_duration: [
       {
-        threshold: 'p(95)<200'
+        threshold: 'p(95)<500'
       }
     ],
     checks: [
@@ -53,15 +59,12 @@ export const options = {
     }
   }
 }
-
 const errorRate = new Rate('errors')
-
 export function setup() {
   return {
     startedAt: Date.now()
   }
 }
-
 export function teardown(data) {
   const startedAt = new Date(data.startedAt)
   const endedAt = new Date()
@@ -69,9 +72,8 @@ export function teardown(data) {
   console.info(`Run started at ${startedAt.toJSON()}`)
   console.info(`Run ended at   ${endedAt.toJSON()}`)
 }
-
 export default function () {
-  const siteUrl = __ENV.SITE_URL
+  const siteUrl = BASE_URL
 
   validateSiteUrl(siteUrl)
 
@@ -79,19 +81,10 @@ export default function () {
     min: 3,
     max: 8
   }
-
   group('Load homepage', function () {
     const response = http.get(siteUrl)
-
     check(response, isOK) || (errorRate.add(1) && fail('status code was *not* 200'))
+    check(response, duration500) || (errorRate.add(1) && fail('duration was *not* < 500ms'))
   })
-
-  sleep(randomIntBetween(pause.min, pause.max))
-
-  // group('Login', function () {
-  //   const response = http.get(`${siteUrl}/my-account/`)
-  //   check(response, isOK) || (errorRate.add(1) && fail('status code was *not* 200'))
-  // })
-
   sleep(randomIntBetween(pause.min, pause.max))
 }

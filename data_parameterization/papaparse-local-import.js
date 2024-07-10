@@ -1,12 +1,12 @@
-import papaparse from './papaparse.js';
-import { SharedArray } from 'k6/data';
+import { SharedArray } from 'k6/data'
+import papaparse from './papaparse.js'
 // not using SharedArray here will mean that the code in the function call (that is what loads and
 // parses the csv) will be executed per each VU which also means that there will be a complete copy
 // per each VU
 const csvData = new SharedArray('another data name', function () {
   // Load CSV file and parse it using Papa Parse
-  return papaparse.parse(open('./data.csv'), { header: true }).data;
-});
+  return papaparse.parse(open('./data.csv'), { header: true }).data
+})
 
 export default function () {
   // ...
