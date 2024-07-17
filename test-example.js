@@ -3,8 +3,8 @@ import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js'
 import { check, fail, group, sleep } from 'k6'
 import http from 'k6/http'
 import { Rate } from 'k6/metrics'
-import { duration500, isOK, validateSiteUrl } from './checks and helper.js'
-
+import { responseTimeLess500ms, statusOK, validateSiteUrl } from './checks and helper.js'
+import { logErrorRequest } from './helper.js'
 const user = {
   first_name: faker.name.firstName(),
   last_name: faker.name.lastName(),
@@ -81,10 +81,10 @@ export default function () {
     min: 3,
     max: 8
   }
-  group('Load homepage', function () {
+  group('Get Users', function () {
     const response = http.get(siteUrl)
-    check(response, isOK) || (errorRate.add(1) && fail('status code was *not* 200'))
-    check(response, duration500) || (errorRate.add(1) && fail('duration was *not* < 500ms'))
+    check(response, statusOK) || (errorRate.add(1) && fail('status code was *not* 200'))
+    check(response, responseTimeLess500ms) || (errorRate.add(1) && fail('duration was *not* < 500ms'))
   })
   sleep(randomIntBetween(pause.min, pause.max))
 }
